@@ -1,4 +1,4 @@
 spiderbox
 =========
 
-An HTML templating engine for python.
+A web templating engine for Python 3.
