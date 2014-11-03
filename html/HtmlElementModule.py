@@ -3,10 +3,14 @@ from .EasyStringIOModule import EasyStringIO
 from .ElementModule import Element
 
 class HtmlElement(Element):
+    _protected = ['_tag', '_attributes', '_children']
+    _void_tags = ['area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr']
+
+
     def __init__(self, tag, children = [], **attributes):
         self._tag = tag
         self._attributes = attributes
-        self._children = []
+        self._children = children
 
 
     def __getitem__(self, k):
@@ -28,14 +32,24 @@ class HtmlElement(Element):
             self._children[k] = v
 
         elif type(k) is str:
-            self._attributes[k] = v
+            if k in self.__class__.__dict__:
+                object.__setattr__(self, k, v)
+
+            else:
+                if v is True:
+                    v = 'true'
+
+                elif v is False:
+                    v = 'false'
+
+                self._attributes[k] = v
 
         else:
             raise ValueError('Unexpected key type "{0}" expecting str or int.'.format(type(k)))
 
 
     def __getattr__(self, k):
-        if k in ['_tag', '_attributes', '_children']:
+        if k in self.__class__._protected:
             return object.__getattribute__(self, k)
 
         elif k in self._attributes:
@@ -46,10 +60,16 @@ class HtmlElement(Element):
 
 
     def __setattr__(self, k, v):
-        if k in ['_tag', '_attributes', '_children']:
+        if k in self.__class__._protected or k in self.__class__.__dict__:
             object.__setattr__(self, k, v)
 
         else:
+            if v is True:
+                v = 'true'
+
+            elif v is False:
+                v = 'false'
+
             self._attributes[k] = v
 
 
@@ -62,10 +82,12 @@ class HtmlElement(Element):
 
     def remove(self, k):
         if type(k) is int:
-            del self._children
+            if k < len(self._children):
+                del self._children[k]
 
         elif type(k) is str:
-            del self._attributes
+            if k in self._attributes:
+                del self._attributes[k]
 
         else:
             raise TypeError('Supplied argument must be type str or int.')
@@ -76,13 +98,18 @@ class HtmlElement(Element):
         buf.write('<', self._tag)
 
         for attrName,attrValue in self._attributes.items():
-            buf.write(' ', attrName, '=', '"', html.escape(attrValue), '"')
+            buf.write(' ', attrName, '="', html.escape(attrValue), '"')
 
-        buf.write('>')
-        for child in self._children:
-            buf.write(str(child))
+        if self._tag in self.__class__._void_tags:
+            buf.write('/>')
 
-        buf.write('</', self._tag, '>')
+        else:
+            buf.write('>')
+
+            for child in self._children:
+                buf.write(str(child))
+
+            buf.write('</', self._tag, '>')
 
         return buf.getvalue()
 
